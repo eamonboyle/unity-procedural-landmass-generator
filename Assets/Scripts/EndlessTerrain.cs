@@ -1,12 +1,15 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class EndlessTerrain : MonoBehaviour
 {
     public const float maxViewDst = 450f;
     public Transform viewer;
+    public Material mapMaterial;
 
     public static Vector2 viewerPosition;
+
+    private static MapGenerator mapGenerator;
 
     private int chunkSize;
     private int chunksVisibleInViewDst;
@@ -16,6 +19,10 @@ public class EndlessTerrain : MonoBehaviour
 
     private void Start()
     {
+        // Cache the map generator script.
+        mapGenerator = FindObjectOfType<MapGenerator>();
+
+        // Calculate the chunk size and how many chunks should be visible to the viewer.
         chunkSize = MapGenerator.mapChunkSize - 1;
         chunksVisibleInViewDst = Mathf.RoundToInt(maxViewDst / chunkSize);
     }
@@ -59,7 +66,7 @@ public class EndlessTerrain : MonoBehaviour
                 }
                 else
                 {
-                    terrainChunkDictionary.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize, transform));
+                    terrainChunkDictionary.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, chunkSize, transform, mapMaterial));
                 }
             }
         }
@@ -71,22 +78,50 @@ public class EndlessTerrain : MonoBehaviour
         private Vector2 position;
         private Bounds bounds;
 
-        public TerrainChunk(Vector2 coord, int size, Transform parent)
+        private MapData mapData;
+
+        private MeshRenderer meshRenderer;
+        private MeshFilter meshFilter;
+
+        public TerrainChunk(Vector2 coord, int size, Transform parent, Material material)
         {
+            // Work out the position and location of the new Terrain Chunk GameObject.
             position = coord * size;
             bounds = new Bounds(position, Vector2.one * size);
             Vector3 positionV3 = new Vector3(position.x, 0, position.y);
 
-            meshObject = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            // Create the terrain chunk GameObject.
+            meshObject = new GameObject("Terrain Chunk");
+            meshRenderer = meshObject.AddComponent<MeshRenderer>();
+            meshFilter = meshObject.AddComponent<MeshFilter>();
+            meshRenderer.material = material;
+
+            // Set the terrain chunks location and parent.
             meshObject.transform.position = positionV3;
-            meshObject.transform.localScale = Vector3.one * size / 10f;
             meshObject.transform.parent = parent;
 
+            // Make the terrain chunk invisible at creation.
             SetVisible(false);
+
+            // Create the callback method for getting MapData from the generator.
+            mapGenerator.RequestMapData(OnMapDataReceived);
+        }
+
+        private void OnMapDataReceived(MapData mapData)
+        {
+            // Use the MapData received to generate the MeshData.
+            mapGenerator.RequestMeshData(mapData, OnMeshDataReceived);
+        }
+
+        private void OnMeshDataReceived(MeshData meshData)
+        {
+            // When the MeshData has been received, generate the Terrain Mesh.
+            meshFilter.mesh = meshData.CreateMesh();
         }
 
         public void UpdateTerrainChunk()
         {
+            // Updates the terrain chunk and sets visible based on where the viewer is.
             float viewerDstFromNearestEdge = Mathf.Sqrt(bounds.SqrDistance(viewerPosition));
             bool visible = viewerDstFromNearestEdge <= maxViewDst;
             SetVisible(visible);
