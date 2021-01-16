@@ -3,6 +3,8 @@ using UnityEngine;
 
 public class EndlessTerrain : MonoBehaviour
 {
+    private const float scale = 1f;
+
     private const float viewerMoveThresholdForChunkUpdate = 25f;
     private const float sqrViewerMoveThresholdForChunkUpdate = viewerMoveThresholdForChunkUpdate * viewerMoveThresholdForChunkUpdate;
 
@@ -39,7 +41,7 @@ public class EndlessTerrain : MonoBehaviour
     private void Update()
     {
         // Update the viewer position variable.
-        viewerPosition = new Vector2(viewer.position.x, viewer.position.z);
+        viewerPosition = new Vector2(viewer.position.x, viewer.position.z) / scale;
 
         // Only update the visible chunks when it's needed.
         if ((viewerPositionOld - viewerPosition).sqrMagnitude > sqrViewerMoveThresholdForChunkUpdate)
@@ -113,9 +115,10 @@ public class EndlessTerrain : MonoBehaviour
             meshFilter = meshObject.AddComponent<MeshFilter>();
             meshRenderer.material = material;
 
-            // Set the terrain chunks location and parent.
-            meshObject.transform.position = positionV3;
+            // Set the terrain chunks location and parent / also apply scale.
+            meshObject.transform.position = positionV3 * scale;
             meshObject.transform.parent = parent;
+            meshObject.transform.localScale = Vector3.one * scale;
 
             // Make the terrain chunk invisible at creation.
             SetVisible(false);
